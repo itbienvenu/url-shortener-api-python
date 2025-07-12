@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>FastAPI URL Shortener - Login/Register</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 50px;
+    }
+
+    .container {
+      max-width: 400px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .switch {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .switch a {
+      color: #3498db;
+      text-decoration: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2 id="form-title">Login</h2>
+
+    <!-- Login Form -->
+    <form id="login-form">
+      <label for="login-email">Email</label>
+      <input type="email" id="login-email" required>
+
+      <label for="login-password">Password</label>
+      <input type="password" id="login-password" required>
+
+      <button type="submit">Login</button>
+    </form>
+
+    <!-- Register Form (hidden by default) -->
+    <form id="register-form" style="display: none;">
+      <label for="reg-names">Full Name</label>
+      <input type="text" id="reg-names" required>
+
+      <label for="reg-email">Email</label>
+      <input type="email" id="reg-email" required>
+
+      <label for="reg-password">Password</label>
+      <input type="password" id="reg-password" required>
+
+      <button type="submit">Register</button>
+    </form>
+
+    <!-- Switch Links -->
+    <div class="switch">
+      <span id="to-register">Don't have an account? <a>Register</a></span>
+      <span id="to-login" style="display: none;">Already have an account? <a>Login</a></span>
+    </div>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById("login-form");
+    const registerForm = document.getElementById("register-form");
+    const toRegister = document.getElementById("to-register");
+    const toLogin = document.getElementById("to-login");
+    const title = document.getElementById("form-title");
+
+    document.getElementById("login-form").addEventListener("submit", function(e){
+      e.preventDefault();
+      email = document.getElementById("login-email").value;
+      password = document.getElementById("login-password").value;
+
+      login(email,password)
+    })
+
+    async function login(email, password) {
+      const response = await fetch('http://127.0.0.1:8000/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log(errorData);
+      }
+
+      const data = await response.json();
+      sessionStorage.setItem("access_token", data.access_token)
+      console.log('Login success:', data);
+      return data;  // typically contains access_token
+    }
+
+    document.getElementById("register-form").addEventListener("submit", function(e){
+      e.preventDefault()
+      const names = document.getElementById("reg-names").value;
+      const email = document.getElementById("reg-email").value;
+      const password = document.getElementById("reg-password").value;
+
+      register(names, email, password);
+    })
+
+    async function register(names, email, password) {
+  const response = await fetch('http://127.0.0.1:8000/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ names, email, password })
+  });
+
+  const data = await response.json();
+  console.log('Register response:', data);
+  return data;
+}
+
+
+    toRegister.addEventListener("click", () => {
+      loginForm.style.display = "none";
+      registerForm.style.display = "block";
+      toRegister.style.display = "none";
+      toLogin.style.display = "block";
+      title.textContent = "Register";
+    });
+
+    toLogin.addEventListener("click", () => {
+      registerForm.style.display = "none";
+      loginForm.style.display = "block";
+      toRegister.style.display = "block";
+      toLogin.style.display = "none";
+      title.textContent = "Login";
+    });
+  </script>
+</body>
+
+</html>

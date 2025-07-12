@@ -2,13 +2,48 @@ from fastapi import FastAPI, HTTPException, Depends
 from uuid import UUID, uuid4
 from typing import Optional
 from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware  # ✅ Import CORS
 from sqlalchemy.orm import Session
 from models import Url, User, LoginInput, RegisterInput
 from demo import generate_short_code
 from db.database import engine, SessionLocal
 from db import models
+from datetime import datetime, timedelta
+import jwt
+from dotenv import load_dotenv
+import os
+
 
 app = FastAPI()
+
+# ✅ Add CORS middleware here
+
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+SECRET_KEY = os.getenv("SECRET_KEY", "secret_itbienvenu_key_hahaha")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+
+def generate_access_code(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 # Create DB tables (run once)
 models.Base.metadata.create_all(bind=engine)
@@ -26,9 +61,13 @@ def get_db():
 def login(u: LoginInput, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == u.email).first()
     if user and user.password == u.password:
-        return {"status": 200, "message": "User logged in"}
+        data = {
+            "names":user.names,
+            "email":user.email
+        }
+        access_token = generate_access_code(data=data)
+        return {"status": 200, "message": "User logged in", "email":user.email, "names":user.names,  "access_token":access_token}
     raise HTTPException(status_code=404, detail="Invalid email or password")
-
 
 @app.post("/register")
 def register(u: RegisterInput, db: Session = Depends(get_db)):

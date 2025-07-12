@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Shorten URL - FastAPI App</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f7f7f7;
+      padding: 50px;
+    }
+
+    .container {
+      max-width: 500px;
+      background-color: white;
+      margin: auto;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input[type="url"] {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #2ecc71;
+      border: none;
+      color: white;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .result {
+      margin-top: 20px;
+      background-color: #ecf0f1;
+      padding: 15px;
+      border-radius: 8px;
+    }
+
+    .error-message {
+      color: red;
+      margin-top: 15px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2>Shorten a URL</h2>
+
+    <div id="shorten-box" style="display: none;">
+      <label for="long-url">Enter Long URL</label>
+      <input type="url" id="long-url" placeholder="https://example.com" required>
+      <button id="shorten-btn">Shorten</button>
+    </div>
+
+    <div class="result" id="result"></div>
+    <div id="auth-status-message" class="error-message"></div>
+  </div>
+
+  <script>
+    const resultDiv = document.getElementById('result');
+    if(sessionStorage.getItem("url")){
+        url = sessionStorage.getItem("url")
+        resultDiv.innerHTML = `Shortened URL: <a href="${url}" target="_blank">${url}</a>`;
+    }
+    const authStatusMessageDiv = document.getElementById('auth-status-message');
+    const shortenBox = document.getElementById("shorten-box");
+    const shortenBtn = document.getElementById("shorten-btn");
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const token = sessionStorage.getItem("access_token");
+
+      if (!token) {
+        shortenBox.style.display = 'none';
+        authStatusMessageDiv.innerHTML = 'You need to be logged in to shorten URLs. Please <a href="index.html">log in</a>.';
+        return;
+      }
+
+      shortenBox.style.display = 'block';
+      authStatusMessageDiv.innerHTML = '';
+
+      shortenBtn.addEventListener("click", async function (e) {
+        e.preventDefault();
+        const url = document.getElementById("long-url").value;
+        if (!url) {
+          resultDiv.textContent = "Please enter a URL.";
+          return;
+        }
+        await shortenUrl(url, token);
+      });
+    });
+
+    async function shortenUrl(originalUrl, token) {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/shorten', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ valid: originalUrl })
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          sessionStorage.removeItem("access_token");
+          resultDiv.textContent = 'Session expired. Redirecting to login...';
+          setTimeout(() => window.location = 'index.html', 1500);
+          return;
+        }
+
+        if (!response.ok) {
+          const err = await response.json();
+          resultDiv.textContent = err.detail || 'Shortening failed.';
+          return;
+        }
+
+        const data = await response.json();
+        sessionStorage.setItem("url", data.shorten_url)
+        // console.log(data)
+      } catch (err) {
+        resultDiv.textContent = 'Unexpected error. Try again.';
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+
+</html>
