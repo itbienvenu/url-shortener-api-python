@@ -39,9 +39,46 @@ This project demonstrates how to create a secure, database-backed URL shortener 
 1. Clone the repository  
 ```bash
 git clone https://github.com/your-username/fastapi-url-shortener.git
-cd fastapi-url-shortener
+cd fastapi-url-shortener 
+```
 
 2. Create and Activate Virtual Environment
+```bash
 python -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 .venv\Scripts\activate     # Windows
+```
+
+3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Run the application
+
+```bash 
+uvicorn main:app --reload
+```
+
+#API END POINT
+
+| Method | Path          | Description                            |
+| ------ | ------------- | -------------------------------------- |
+| POST   | `/register`   | Register a new user                    |
+| POST   | `/login`      | Login a user                           |
+| POST   | `/shorten`    | Create a shortened URL (auth required) |
+| GET    | `/get_all`    | List all shortened URLs                |
+| GET    | `/{url_code}` | Redirect to the original URL           |
+
+#PROJECT STRUCTURE
+
+.
+├── main.py            # FastAPI app and routes
+├── models.py          # Pydantic models and SQLAlchemy models
+├── db/
+│   ├── database.py    # Database connection and session setup
+│   └── models.py      # SQLAlchemy models
+├── demo.py            # Utility functions (e.g. code generator)
+├── requirements.txt   # Python dependencies
+└── README.md          # Project documentation
