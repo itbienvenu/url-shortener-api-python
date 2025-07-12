@@ -4,6 +4,7 @@ from typing import Optional, List
 from enum import Enum
 from models import Url
 from demo import generate_short_code
+from fastapi.responses import RedirectResponse
 
 
 app = FastAPI()
@@ -32,10 +33,11 @@ def shorten_link(url: Url):
         "data": new_url
     }
 
+# @app.get("/{code}")
 @app.get("/{url_code}")
-def redirect_user(url_code):
-    code = [code for code in url_code.split("/")][-1]
+def redirect_user(url_code: str):
     for url in db:
-        if url.code == code:
-            return {"message":url.valid}
+        if url.code == url_code:
+            return {"message": url.valid}  # or RedirectResponse
     raise HTTPException(status_code=404, detail="Invalid code")
+
