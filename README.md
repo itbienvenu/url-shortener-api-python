@@ -5,6 +5,10 @@ This project demonstrates how to create a secure, database-backed URL shortener 
 
 ---
 
+-Live Url: https://urlapi-r5yr.onrender.com/
+
+-Documentation Link: https://urlapi-r5yr.onrender.com/docs
+
 ## Features
 
 - User registration and login  
