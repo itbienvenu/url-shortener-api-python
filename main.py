@@ -1,70 +1,89 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from uuid import UUID, uuid4
-from typing import Optional, List
-from enum import Enum
-from models import Url, User, LoginInput,RegisterInput
-from demo import generate_short_code
+from typing import Optional
 from fastapi.responses import RedirectResponse
-
+from sqlalchemy.orm import Session
+from models import Url, User, LoginInput, RegisterInput
+from demo import generate_short_code
+from db.database import engine, SessionLocal
+from db import models
 
 app = FastAPI()
 
-db: List[Url] = []
-users: List[User] = [
-    User(id=uuid4(), 
-         names="Mwimule Bienvenu", 
-         email="bienvenu@gmail.com", 
-         password="Bienvenu123@",
-         
-        )
-]
+# Create DB tables (run once)
+models.Base.metadata.create_all(bind=engine)
+
+# Dependency to get DB session per request
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 @app.post("/login")
-def login(u: LoginInput):
-    for user in users:
-        if user.email == u.email and user.password == u.password:
-            return {"status":200, "message":"User logged in"}
-    raise HTTPException(status_code=404, detail="Invalid email or password")    
+def login(u: LoginInput, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == u.email).first()
+    if user and user.password == u.password:
+        return {"status": 200, "message": "User logged in"}
+    raise HTTPException(status_code=404, detail="Invalid email or password")
+
 
 @app.post("/register")
-def register(u: RegisterInput):
-    for user in users:
-        if user.email == u.email:
-            return {"status":"failed", "message":"User alredy registred"}
-        users.append(u)
-        return {"status":"success", "message":"User Registered well"}
+def register(u: RegisterInput, db: Session = Depends(get_db)):
+    existing_user = db.query(models.User).filter(models.User.email == u.email).first()
+    if existing_user:
+        return {"status": "failed", "message": "User already registered"}
+    
+    new_user = models.User(
+        id=uuid4(),
+        names=u.names,
+        email=u.email,
+        password=u.password
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"status": "success", "message": "User registered well"}
 
 
 @app.get('/get_all')
-def get_all_url():
-    return db
-def index():
-    return {"message":"Heome page"}
+def get_all_url(db: Session = Depends(get_db)):
+    urls = db.query(models.Url).all()
+    return urls
+
 
 @app.post("/shorten")
-
-def shorten_link(url: Url):
+def shorten_link(url: Url, db: Session = Depends(get_db)):
+    # Generate a unique short code
     while True:
         shorten_url = generate_short_code(length=8)
-        if not any(u.code == shorten_url for u in db):
+        existing = db.query(models.Url).filter(models.Url.code == shorten_url).first()
+        if not existing:
             break
-    new_url = Url(
+    new_url = models.Url(
         id=uuid4(),
         valid=url.valid,
-        code=shorten_url
+        code=shorten_url,
+        clicks=0
     )
-    db.append(new_url)
-    return{
-        "message":"URL shortened well",
-        "shorten_url":f"http://127.0.0.1:8080/{shorten_url}",
+    db.add(new_url)
+    db.commit()
+    db.refresh(new_url)
+
+    return {
+        "message": "URL shortened well",
+        "shorten_url": f"http://127.0.0.1:8000/{shorten_url}",
         "data": new_url
     }
 
-# @app.get("/{code}")
-@app.get("/{url_code}")
-def redirect_user(url_code: str):
-    for url in db:
-        if url.code == url_code:
-            url.clicks +=1
-            return RedirectResponse(url=url.valid)  # or RedirectResponse
-    raise HTTPException(status_code=404, detail="Invalid code")
 
+@app.get("/{url_code}")
+def redirect_user(url_code: str, db: Session = Depends(get_db)):
+    url = db.query(models.Url).filter(models.Url.code == url_code).first()
+    if url:
+        url.clicks += 1
+        db.commit()
+        return RedirectResponse(url=url.valid)
+    raise HTTPException(status_code=404, detail="Invalid code")
